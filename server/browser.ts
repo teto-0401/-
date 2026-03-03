@@ -21,6 +21,7 @@ export class BrowserManager {
 
   async start() {
     try {
+      process.env.PUPPETEER_CACHE_DIR ??= path.join(process.cwd(), '.cache', 'puppeteer');
       let execPath = process.env.PUPPETEER_EXECUTABLE_PATH;
       if (!execPath) {
         // Playwright の標準的なキャッシュパスを確認

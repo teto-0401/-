@@ -4,18 +4,23 @@ const fs = require('fs');
 
 /**
  * Render.com で Puppeteer を動かすための設定
- * 1. .cache/puppeteer を作成
- * 2. chrome をインストール
+ * 1. プロジェクト配下にキャッシュディレクトリを作成
+ * 2. Puppeteer が要求する Chrome をインストール
  */
 try {
-  console.log('Installing Chromium using Playwright...');
-  // Playwright を使用して Chromium をインストール
-  execSync('npx playwright install chromium', {
+  const cacheDir = path.join(process.cwd(), '.cache', 'puppeteer');
+  fs.mkdirSync(cacheDir, { recursive: true });
+
+  console.log(`Installing Chrome for Puppeteer into: ${cacheDir}`);
+  execSync(`npx puppeteer browsers install chrome --path "${cacheDir}"`, {
     stdio: 'inherit',
-    env: { ...process.env }
+    env: {
+      ...process.env,
+      PUPPETEER_CACHE_DIR: cacheDir,
+    },
   });
-  console.log('Chromium installed successfully.');
+  console.log('Chrome installed successfully for Puppeteer.');
 } catch (error) {
   console.error('Failed to install Chrome:', error);
-  // Replit環境などでは既にインストールされている可能性があるため、エラーでも続行
+  // 環境によっては既に Chrome があるため、エラーでも続行
 }
