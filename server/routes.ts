@@ -10,8 +10,6 @@ export async function registerRoutes(
 ): Promise<Server> {
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
 
-  let memoryInterval: NodeJS.Timeout;
-
   wss.on("connection", (ws: WebSocket) => {
     console.log("[WS] Client connected");
 
@@ -89,19 +87,6 @@ export async function registerRoutes(
       browserManager?.close();
     });
   });
-
-  // Memory usage logging (every 5 seconds)
-  memoryInterval = setInterval(() => {
-    const usage = process.memoryUsage();
-    const mb = Math.round(usage.rss / 1024 / 1024);
-    console.log(`[Memory] RSS: ${mb} MB`);
-    
-    wss.clients.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ type: "memory", usage: mb } as WsServerMessage));
-      }
-    });
-  }, 5000);
 
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });

@@ -42,6 +42,9 @@ export class BrowserManager {
   async start() {
     try {
       process.env.PUPPETEER_CACHE_DIR ??= path.join(process.cwd(), '.cache', 'puppeteer');
+      process.env.PLAYWRIGHT_BROWSERS_PATH ??= process.env.RENDER
+        ? '/opt/render/.cache/ms-playwright'
+        : path.join(process.cwd(), '.cache', 'ms-playwright');
       let execPath = process.env.PUPPETEER_EXECUTABLE_PATH;
       if (!execPath) {
         const puppeteerCachePaths = [
@@ -63,9 +66,10 @@ export class BrowserManager {
       if (!execPath) {
         // Playwright の標準的なキャッシュパスを確認
         const pwPaths = [
+          process.env.PLAYWRIGHT_BROWSERS_PATH,
           path.join(process.env.HOME || '', '.cache/ms-playwright'),
           '/opt/render/.cache/ms-playwright'
-        ];
+        ].filter(Boolean) as string[];
         
         for (const base of pwPaths) {
           if (fs.existsSync(base)) {
