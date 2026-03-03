@@ -21,8 +21,18 @@ export class BrowserManager {
     try {
       let execPath = process.env.PUPPETEER_EXECUTABLE_PATH;
       if (!execPath) {
+        // Render.com のキャッシュパスを優先的にチェック
+        const renderCachePath = '/opt/render/.cache/puppeteer';
+        if (require('fs').existsSync(renderCachePath)) {
+          // キャッシュ内のバイナリを探すロジック（簡易版）
+          // 実際にはもっと複雑なパスになる可能性があるが、一旦標準的な場所を試みる
+          execPath = require('path').join(renderCachePath, 'chrome/linux-125.0.6422.141/chrome-linux64/chrome');
+        }
+      }
+      
+      if (!execPath) {
         try {
-          execPath = execSync('which chromium').toString().trim();
+          execPath = execSync('which chromium || which google-chrome-stable || which google-chrome').toString().trim();
         } catch (e) {
           // fallback
         }
