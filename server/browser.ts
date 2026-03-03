@@ -2,6 +2,8 @@ import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import { Browser, Page, CDPSession } from 'puppeteer';
 import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
 
 puppeteer.use(StealthPlugin());
 
@@ -28,13 +30,13 @@ export class BrowserManager {
         ];
         
         for (const base of pwPaths) {
-          if (require('fs').existsSync(base)) {
+          if (fs.existsSync(base)) {
             // chromium-* ディレクトリ配下の chrome バイナリを探す
-            const dirs = require('fs').readdirSync(base);
+            const dirs = fs.readdirSync(base);
             const chromiumDir = dirs.find(d => d.startsWith('chromium-'));
             if (chromiumDir) {
               const fullPath = path.join(base, chromiumDir, 'chrome-linux/chrome');
-              if (require('fs').existsSync(fullPath)) {
+              if (fs.existsSync(fullPath)) {
                 execPath = fullPath;
                 break;
               }
