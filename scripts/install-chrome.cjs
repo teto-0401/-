@@ -8,11 +8,11 @@ const fs = require('fs');
  * 2. Puppeteer が要求する Chrome をインストール
  */
 try {
-  const cacheDir = path.join(process.cwd(), '.cache', 'puppeteer');
+  const cacheDir = process.env.PUPPETEER_CACHE_DIR || path.join(process.cwd(), '.cache', 'puppeteer');
   fs.mkdirSync(cacheDir, { recursive: true });
 
   console.log(`Installing Chrome for Puppeteer into: ${cacheDir}`);
-  execSync(`npx puppeteer browsers install chrome --path "${cacheDir}"`, {
+  execSync('npx puppeteer browsers install chrome', {
     stdio: 'inherit',
     env: {
       ...process.env,
@@ -22,5 +22,7 @@ try {
   console.log('Chrome installed successfully for Puppeteer.');
 } catch (error) {
   console.error('Failed to install Chrome:', error);
-  // 環境によっては既に Chrome があるため、エラーでも続行
+  if (process.env.RENDER) {
+    process.exit(1);
+  }
 }

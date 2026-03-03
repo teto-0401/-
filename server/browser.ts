@@ -7,6 +7,26 @@ import path from 'path';
 
 puppeteer.use(StealthPlugin());
 
+function findChromeFromPuppeteerCache(cacheRoot: string): string | undefined {
+  const chromeRoot = path.join(cacheRoot, 'chrome');
+  if (!fs.existsSync(chromeRoot)) return undefined;
+
+  const builds = fs.readdirSync(chromeRoot, { withFileTypes: true });
+  for (const build of builds) {
+    if (!build.isDirectory()) continue;
+    const base = path.join(chromeRoot, build.name);
+    const candidates = [
+      path.join(base, 'chrome-linux64', 'chrome'),
+      path.join(base, 'chrome-linux', 'chrome'),
+    ];
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) return candidate;
+    }
+  }
+
+  return undefined;
+}
+
 export class BrowserManager {
   private browser: Browser | null = null;
   private page: Page | null = null;
@@ -21,8 +41,24 @@ export class BrowserManager {
 
   async start() {
     try {
-      process.env.PUPPETEER_CACHE_DIR ??= path.join(process.cwd(), '.cache', 'puppeteer');
       let execPath = process.env.PUPPETEER_EXECUTABLE_PATH;
+      if (!execPath) {
+        const puppeteerCachePaths = [
+          process.env.PUPPETEER_CACHE_DIR,
+          path.join(process.cwd(), '.cache', 'puppeteer'),
+          path.join(process.env.HOME || '', '.cache', 'puppeteer'),
+          '/opt/render/.cache/puppeteer',
+        ].filter(Boolean) as string[];
+
+        for (const cachePath of puppeteerCachePaths) {
+          const found = findChromeFromPuppeteerCache(cachePath);
+          if (found) {
+            execPath = found;
+            break;
+          }
+        }
+      }
+
       if (!execPath) {
         // Playwright の標準的なキャッシュパスを確認
         const pwPaths = [
