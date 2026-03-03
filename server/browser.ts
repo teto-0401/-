@@ -41,6 +41,7 @@ export class BrowserManager {
 
   async start() {
     try {
+      process.env.PUPPETEER_CACHE_DIR ??= path.join(process.cwd(), '.cache', 'puppeteer');
       let execPath = process.env.PUPPETEER_EXECUTABLE_PATH;
       if (!execPath) {
         const puppeteerCachePaths = [
@@ -90,6 +91,12 @@ export class BrowserManager {
         }
       }
 
+      if (execPath) {
+        console.log(`[Browser] Launching with executable: ${execPath}`);
+      } else {
+        console.warn(`[Browser] No executablePath found, relying on Puppeteer cache: ${process.env.PUPPETEER_CACHE_DIR}`);
+      }
+
       this.browser = await puppeteer.launch({
         headless: "new",
         executablePath: execPath,
@@ -98,6 +105,7 @@ export class BrowserManager {
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-gpu',
+          '--lang=ja-JP',
           '--window-size=800,600'
         ],
         defaultViewport: { width: 800, height: 600 }

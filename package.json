@@ -4,6 +4,7 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
+    "postinstall": "node scripts/install-chrome.cjs",
     "dev": "NODE_ENV=development tsx server/index.ts",
     "install:chrome": "node scripts/install-chrome.cjs",
     "build": "tsx script/build.ts",
