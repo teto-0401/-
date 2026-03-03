@@ -16,8 +16,10 @@ export function useRemoteBrowser({ onFrame }: UseRemoteBrowserProps = {}) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const isComponentMounted = useRef(true);
+  const shouldReconnectRef = useRef(true);
 
   const connect = useCallback(() => {
+    if (!shouldReconnectRef.current) return;
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
     
     setStatus("connecting");
@@ -53,6 +55,10 @@ export function useRemoteBrowser({ onFrame }: UseRemoteBrowserProps = {}) {
             break;
           case "error":
             setError(rawData.message);
+            if (/Could not find Chrome/i.test(rawData.message)) {
+              // Fatal server-side setup error; avoid reconnect loop.
+              shouldReconnectRef.current = false;
+            }
             break;
         }
       } catch (err) {
@@ -71,9 +77,11 @@ export function useRemoteBrowser({ onFrame }: UseRemoteBrowserProps = {}) {
       
       // Auto reconnect
       clearTimeout(reconnectTimeoutRef.current);
-      reconnectTimeoutRef.current = setTimeout(() => {
-        if (isComponentMounted.current) connect();
-      }, 3000);
+      if (shouldReconnectRef.current) {
+        reconnectTimeoutRef.current = setTimeout(() => {
+          if (isComponentMounted.current) connect();
+        }, 3000);
+      }
     };
 
     wsRef.current = ws;
@@ -81,6 +89,7 @@ export function useRemoteBrowser({ onFrame }: UseRemoteBrowserProps = {}) {
 
   useEffect(() => {
     isComponentMounted.current = true;
+    shouldReconnectRef.current = true;
     connect();
 
     return () => {
