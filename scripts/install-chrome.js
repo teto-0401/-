@@ -8,18 +8,13 @@ const fs = require('fs');
  * 2. chrome をインストール
  */
 try {
-  console.log('Installing Chrome for Puppeteer...');
-  const cachePath = path.join(process.cwd(), '.cache', 'puppeteer');
-  if (!fs.existsSync(cachePath)) {
-    fs.mkdirSync(cachePath, { recursive: true });
-  }
-  
-  // PUPPETEER_CACHE_DIR を環境変数として設定した状態でインストールを実行
-  execSync('npx puppeteer browsers install chrome', {
+  console.log('Installing Chromium using Playwright...');
+  // Playwright を使用して Chromium をインストール
+  execSync('npx playwright install chromium', {
     stdio: 'inherit',
-    env: { ...process.env, PUPPETEER_CACHE_DIR: cachePath }
+    env: { ...process.env }
   });
-  console.log('Chrome installed successfully.');
+  console.log('Chromium installed successfully.');
 } catch (error) {
   console.error('Failed to install Chrome:', error);
   // Replit環境などでは既にインストールされている可能性があるため、エラーでも続行

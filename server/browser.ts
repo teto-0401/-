@@ -21,12 +21,25 @@ export class BrowserManager {
     try {
       let execPath = process.env.PUPPETEER_EXECUTABLE_PATH;
       if (!execPath) {
-        // Render.com のキャッシュパスを優先的にチェック
-        const renderCachePath = '/opt/render/.cache/puppeteer';
-        if (require('fs').existsSync(renderCachePath)) {
-          // キャッシュ内のバイナリを探すロジック（簡易版）
-          // 実際にはもっと複雑なパスになる可能性があるが、一旦標準的な場所を試みる
-          execPath = require('path').join(renderCachePath, 'chrome/linux-125.0.6422.141/chrome-linux64/chrome');
+        // Playwright の標準的なキャッシュパスを確認
+        const pwPaths = [
+          path.join(process.env.HOME || '', '.cache/ms-playwright'),
+          '/opt/render/.cache/ms-playwright'
+        ];
+        
+        for (const base of pwPaths) {
+          if (require('fs').existsSync(base)) {
+            // chromium-* ディレクトリ配下の chrome バイナリを探す
+            const dirs = require('fs').readdirSync(base);
+            const chromiumDir = dirs.find(d => d.startsWith('chromium-'));
+            if (chromiumDir) {
+              const fullPath = path.join(base, chromiumDir, 'chrome-linux/chrome');
+              if (require('fs').existsSync(fullPath)) {
+                execPath = fullPath;
+                break;
+              }
+            }
+          }
         }
       }
       
