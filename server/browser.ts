@@ -153,6 +153,31 @@ export class BrowserManager {
 
       const pages = await this.browser.pages();
       this.page = pages[0] || await this.browser.newPage();
+      await this.page.setBypassCSP(true);
+      await this.page.evaluateOnNewDocument(() => {
+        const ensureJapaneseFont = () => {
+          if (document.getElementById("codex-ja-font-style")) return;
+          const style = document.createElement("style");
+          style.id = "codex-ja-font-style";
+          style.textContent = `
+            @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap");
+            html, body {
+              font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+            }
+            :lang(ja), [lang="ja"], [lang^="ja-"] {
+              font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif !important;
+            }
+          `;
+          (document.head || document.documentElement).appendChild(style);
+        };
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", ensureJapaneseFont, {
+            once: true,
+          });
+        } else {
+          ensureJapaneseFont();
+        }
+      });
 
       this.page.on('framenavigated', (frame) => {
         if (frame === this.page?.mainFrame()) {
