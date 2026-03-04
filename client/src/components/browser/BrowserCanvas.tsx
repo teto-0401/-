@@ -122,13 +122,13 @@ export const BrowserCanvas = forwardRef<BrowserCanvasRef, BrowserCanvasProps>(
               {status === "connecting" && (
                 <>
                   <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                  <p className="font-medium tracking-wide animate-pulse">Connecting to browser...</p>
+                  <p className="font-medium tracking-wide animate-pulse">ブラウザに接続中...</p>
                 </>
               )}
               {(status === "disconnected" || status === "error") && (
                 <>
                   <MonitorX className="w-8 h-8 text-destructive" />
-                  <p className="font-medium tracking-wide">Connection lost. Reconnecting...</p>
+                  <p className="font-medium tracking-wide">接続が切れました。再接続しています...</p>
                 </>
               )}
             </div>

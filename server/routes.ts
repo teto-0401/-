@@ -35,7 +35,7 @@ export async function registerRoutes(
       browserStartPromise = browserManager
         .start()
         .then(() => {
-          return browserManager?.goto("https://google.com");
+          return browserManager?.goto("https://www.google.co.jp");
         })
         .finally(() => {
           browserStartPromise = null;

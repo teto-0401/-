@@ -12,14 +12,14 @@ export default function NotFound() {
             <AlertCircle className="w-8 h-8" />
           </div>
           <h1 className="text-3xl font-bold text-foreground tracking-tight mb-3">
-            404 Page Not Found
+            404 ページが見つかりません
           </h1>
           <p className="text-muted-foreground mb-8 text-lg">
-            The route you're looking for doesn't exist in this application.
+            指定されたルートはこのアプリに存在しません。
           </p>
           <Link href="/" className="w-full">
             <Button className="w-full h-12 rounded-xl text-base shadow-lg shadow-primary/20 hover:-translate-y-0.5 transition-all">
-              Return to Browser
+              ブラウザ画面へ戻る
             </Button>
           </Link>
         </CardContent>

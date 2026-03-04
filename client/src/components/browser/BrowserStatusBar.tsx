@@ -6,6 +6,13 @@ interface BrowserStatusBarProps {
 }
 
 export function BrowserStatusBar({ status, memoryUsage }: BrowserStatusBarProps) {
+  const statusLabelMap: Record<string, string> = {
+    connecting: "接続中",
+    connected: "接続済み",
+    disconnected: "切断",
+    error: "エラー",
+  };
+
   return (
     <div className="h-10 border-t border-border/50 bg-background flex items-center justify-between px-4 text-xs font-medium text-muted-foreground z-20">
       
@@ -17,12 +24,12 @@ export function BrowserStatusBar({ status, memoryUsage }: BrowserStatusBarProps)
           ) : (
             <ServerCrash className="w-4 h-4 text-destructive" />
           )}
-          <span className="capitalize">{status}</span>
+          <span>{statusLabelMap[status] ?? status}</span>
         </div>
         
         <div className="hidden sm:flex items-center gap-2 border-l border-border/50 pl-4">
           <Monitor className="w-4 h-4" />
-          <span>Remote Session</span>
+          <span>リモートセッション</span>
         </div>
       </div>
 

@@ -45,7 +45,7 @@ export function BrowserToolbar({
       if (target.includes(".") && !target.includes(" ")) {
         target = `https://${target}`;
       } else {
-        target = `https://www.google.com/search?q=${encodeURIComponent(target)}`;
+        target = `https://www.google.co.jp/search?q=${encodeURIComponent(target)}`;
       }
     }
     
@@ -73,7 +73,7 @@ export function BrowserToolbar({
           <Input 
             value={inputUrl}
             onChange={(e) => setInputUrl(e.target.value)}
-            placeholder="Search or enter web address"
+            placeholder="検索語句またはURLを入力"
             className="w-full pl-11 pr-4 h-12 rounded-2xl bg-secondary/50 border-transparent hover:border-border focus:bg-background focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all font-mono text-sm"
           />
         </form>
@@ -103,14 +103,14 @@ export function BrowserToolbar({
           <PopoverContent align="end" className="w-80 p-6 rounded-2xl shadow-xl">
             <div className="space-y-6">
               <div>
-                <h4 className="font-semibold mb-1">Stream Settings</h4>
-                <p className="text-xs text-muted-foreground">Adjust quality and framerate to save bandwidth.</p>
+                <h4 className="font-semibold mb-1">配信設定</h4>
+                <p className="text-xs text-muted-foreground">画質とフレーム間引きを調整して通信量を抑えます。</p>
               </div>
               
               <div className="space-y-4">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">JPEG Quality ({quality[0]}%)</Label>
+                    <Label className="text-sm font-medium">JPEG画質 ({quality[0]}%)</Label>
                   </div>
                   <Slider 
                     value={quality}
@@ -125,7 +125,7 @@ export function BrowserToolbar({
                 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">Capture Rate (Skip {fps[0]} frames)</Label>
+                    <Label className="text-sm font-medium">キャプチャ間引き (毎 {fps[0]} フレーム)</Label>
                   </div>
                   <Slider 
                     value={fps}
@@ -136,7 +136,7 @@ export function BrowserToolbar({
                     step={1}
                     className="py-2"
                   />
-                  <p className="text-xs text-muted-foreground">Lower is faster (smoother video), higher saves more CPU/Memory.</p>
+                  <p className="text-xs text-muted-foreground">値を小さくすると滑らか、大きくするとCPU/メモリ使用量を抑えます。</p>
                 </div>
               </div>
             </div>
