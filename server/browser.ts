@@ -7,6 +7,9 @@ import path from 'path';
 
 puppeteer.use(StealthPlugin());
 
+const LOCK_RETRY_DELAY_MS = 500;
+const LOCK_RETRY_COUNT = 8;
+
 function findChromeFromPuppeteerCache(cacheRoot: string): string | undefined {
   const chromeRoot = path.join(cacheRoot, 'chrome');
   if (!fs.existsSync(chromeRoot)) return undefined;
@@ -103,20 +106,43 @@ export class BrowserManager {
         console.warn(`[Browser] No executablePath found, relying on Puppeteer cache: ${process.env.PUPPETEER_CACHE_DIR}`);
       }
 
-      this.browser = await puppeteer.launch({
-        headless: "new",
-        executablePath: execPath,
-        userDataDir,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--lang=ja-JP',
-          '--window-size=800,600'
-        ],
-        defaultViewport: { width: 800, height: 600 }
-      });
+      let launchError: unknown;
+      for (let attempt = 1; attempt <= LOCK_RETRY_COUNT; attempt++) {
+        try {
+          this.browser = await puppeteer.launch({
+            headless: "new",
+            executablePath: execPath,
+            userDataDir,
+            args: [
+              '--no-sandbox',
+              '--disable-setuid-sandbox',
+              '--disable-dev-shm-usage',
+              '--disable-gpu',
+              '--lang=ja-JP',
+              '--window-size=800,600'
+            ],
+            defaultViewport: { width: 800, height: 600 }
+          });
+          launchError = undefined;
+          break;
+        } catch (err) {
+          launchError = err;
+          const message = err instanceof Error ? err.message : String(err);
+          const isLockError = /already running.*userDataDir/i.test(message);
+          if (!isLockError || attempt === LOCK_RETRY_COUNT) break;
+
+          console.warn(
+            `[Browser] userDataDir is locked. retry ${attempt}/${LOCK_RETRY_COUNT} in ${LOCK_RETRY_DELAY_MS}ms`,
+          );
+          await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_DELAY_MS));
+        }
+      }
+
+      if (!this.browser) {
+        throw launchError instanceof Error
+          ? launchError
+          : new Error(String(launchError ?? "Failed to launch browser"));
+      }
 
       this.browser.on('disconnected', () => {
         if (!this.isClosing) {
