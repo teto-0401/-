@@ -45,6 +45,8 @@ export class BrowserManager {
       process.env.PLAYWRIGHT_BROWSERS_PATH ??= process.env.RENDER
         ? '/opt/render/.cache/ms-playwright'
         : path.join(process.cwd(), '.cache', 'ms-playwright');
+      const userDataDir = process.env.BROWSER_USER_DATA_DIR || path.join(process.cwd(), '.cache', 'chrome-user-data');
+      fs.mkdirSync(userDataDir, { recursive: true });
       let execPath = process.env.PUPPETEER_EXECUTABLE_PATH;
       if (!execPath) {
         const puppeteerCachePaths = [
@@ -104,6 +106,7 @@ export class BrowserManager {
       this.browser = await puppeteer.launch({
         headless: "new",
         executablePath: execPath,
+        userDataDir,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
