@@ -9,28 +9,69 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   const wss = new WebSocketServer({ server: httpServer, path: "/ws" });
+  const clients = new Set<WebSocket>();
+  let browserManager: BrowserManager | null = null;
+  let browserStartPromise: Promise<void> | null = null;
+  let cleanupTimer: NodeJS.Timeout | null = null;
+
+  const broadcast = (msg: WsServerMessage) => {
+    const payload = JSON.stringify(msg);
+    clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(payload);
+      }
+    });
+  };
+
+  const ensureBrowser = async () => {
+    if (browserManager) return browserManager;
+    if (!browserStartPromise) {
+      browserManager = new BrowserManager(
+        (data) => broadcast({ type: "frame", data }),
+        (url) => broadcast({ type: "navigated", url }),
+        (message) => broadcast({ type: "error", message })
+      );
+
+      browserStartPromise = browserManager
+        .start()
+        .then(() => {
+          return browserManager?.goto("https://google.com");
+        })
+        .finally(() => {
+          browserStartPromise = null;
+        });
+    }
+
+    await browserStartPromise;
+    return browserManager;
+  };
+
+  const scheduleCleanup = () => {
+    if (cleanupTimer) {
+      clearTimeout(cleanupTimer);
+      cleanupTimer = null;
+    }
+    if (clients.size > 0) return;
+
+    // Avoid tearing down browser during short reconnect windows.
+    cleanupTimer = setTimeout(async () => {
+      if (clients.size > 0) return;
+      await browserManager?.close();
+      browserManager = null;
+    }, 5000);
+  };
 
   wss.on("connection", (ws: WebSocket) => {
     console.log("[WS] Client connected");
-
-    let browserManager: BrowserManager | null = null;
-    let isActive = true;
-    
-    const send = (msg: WsServerMessage) => {
+    clients.add(ws);
+    if (cleanupTimer) {
+      clearTimeout(cleanupTimer);
+      cleanupTimer = null;
+    }
+    ensureBrowser().catch((err) => {
+      const message = err instanceof Error ? err.message : String(err);
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(msg));
-      }
-    };
-
-    browserManager = new BrowserManager(
-      (data) => send({ type: "frame", data }),
-      (url) => send({ type: "navigated", url }),
-      (message) => send({ type: "error", message })
-    );
-
-    browserManager.start().then(() => {
-      if (isActive) {
-        browserManager?.goto("https://google.com");
+        ws.send(JSON.stringify({ type: "error", message } satisfies WsServerMessage));
       }
     });
 
@@ -39,32 +80,33 @@ export async function registerRoutes(
         const parsed = JSON.parse(rawData.toString());
         const msg = wsClientMessageSchema.parse(parsed);
 
-        if (!browserManager) return;
+        const activeBrowser = await ensureBrowser();
+        if (!activeBrowser) return;
 
         switch (msg.type) {
           case "goto":
-            await browserManager.goto(msg.url);
+            await activeBrowser.goto(msg.url);
             break;
           case "mouseMove":
-            await browserManager.mouseMove(msg.x, msg.y);
+            await activeBrowser.mouseMove(msg.x, msg.y);
             break;
           case "mouseDown":
-            await browserManager.mouseDown(msg.button);
+            await activeBrowser.mouseDown(msg.button);
             break;
           case "mouseUp":
-            await browserManager.mouseUp(msg.button);
+            await activeBrowser.mouseUp(msg.button);
             break;
           case "keyDown":
-            await browserManager.keyDown(msg.key);
+            await activeBrowser.keyDown(msg.key);
             break;
           case "keyUp":
-            await browserManager.keyUp(msg.key);
+            await activeBrowser.keyUp(msg.key);
             break;
           case "scroll":
-            await browserManager.scroll(msg.deltaX, msg.deltaY);
+            await activeBrowser.scroll(msg.deltaX, msg.deltaY);
             break;
           case "settings":
-            await browserManager.updateScreencastSettings(
+            await activeBrowser.updateScreencastSettings(
               msg.quality ?? 50,
               msg.everyNthFrame ?? 1
             );
@@ -77,14 +119,14 @@ export async function registerRoutes(
 
     ws.on("close", () => {
       console.log("[WS] Client disconnected");
-      isActive = false;
-      browserManager?.close();
+      clients.delete(ws);
+      scheduleCleanup();
     });
 
     ws.on("error", (err) => {
       console.error("[WS] Error:", err);
-      isActive = false;
-      browserManager?.close();
+      clients.delete(ws);
+      scheduleCleanup();
     });
   });
 
