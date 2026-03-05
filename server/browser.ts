@@ -9,6 +9,7 @@ puppeteer.use(StealthPlugin());
 
 const LOCK_RETRY_DELAY_MS = 500;
 const LOCK_RETRY_COUNT = 8;
+const ACCEPT_LANGUAGE = "ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7";
 
 function findChromeFromPuppeteerCache(cacheRoot: string): string | undefined {
   const chromeRoot = path.join(cacheRoot, 'chrome');
@@ -110,7 +111,7 @@ export class BrowserManager {
       for (let attempt = 1; attempt <= LOCK_RETRY_COUNT; attempt++) {
         try {
           this.browser = await puppeteer.launch({
-            headless: "new",
+            headless: true,
             executablePath: execPath,
             userDataDir,
             args: [
@@ -119,9 +120,10 @@ export class BrowserManager {
               '--disable-dev-shm-usage',
               '--disable-gpu',
               '--lang=ja-JP',
-              '--window-size=800,600'
+              '--accept-lang=ja-JP,ja',
+              '--window-size=1280,720'
             ],
-            defaultViewport: { width: 800, height: 600 }
+            defaultViewport: { width: 1280, height: 720 }
           });
           launchError = undefined;
           break;
@@ -153,19 +155,48 @@ export class BrowserManager {
 
       const pages = await this.browser.pages();
       this.page = pages[0] || await this.browser.newPage();
+      await this.page.setExtraHTTPHeaders({
+        "Accept-Language": ACCEPT_LANGUAGE,
+      });
       await this.page.setBypassCSP(true);
       await this.page.evaluateOnNewDocument(() => {
+        const setNavigatorLocale = () => {
+          const nav = window.navigator as Navigator & {
+            language?: string;
+            languages?: string[];
+          };
+          try {
+            Object.defineProperty(nav, "language", {
+              get: () => "ja-JP",
+              configurable: true,
+            });
+          } catch {}
+          try {
+            Object.defineProperty(nav, "languages", {
+              get: () => ["ja-JP", "ja", "en-US", "en"],
+              configurable: true,
+            });
+          } catch {}
+        };
+
+        setNavigatorLocale();
+
         const ensureJapaneseFont = () => {
           if (document.getElementById("codex-ja-font-style")) return;
           const style = document.createElement("style");
           style.id = "codex-ja-font-style";
           style.textContent = `
-            @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap");
-            html, body {
-              font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
-            }
+            html, body,
             :lang(ja), [lang="ja"], [lang^="ja-"] {
-              font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif !important;
+              font-family:
+                "Noto Sans CJK JP",
+                "Noto Sans JP",
+                "Noto Sans CJK",
+                "Noto Serif CJK JP",
+                "Hiragino Kaku Gothic ProN",
+                "Yu Gothic",
+                "Meiryo",
+                sans-serif !important;
             }
           `;
           (document.head || document.documentElement).appendChild(style);
@@ -192,9 +223,18 @@ export class BrowserManager {
 
       this.cdp = await this.page.target().createCDPSession();
       await this.cdp.send('Page.enable');
+      await this.cdp.send('Network.enable');
+      await this.cdp.send('Network.setExtraHTTPHeaders', {
+        headers: {
+          'Accept-Language': ACCEPT_LANGUAGE,
+        },
+      });
+      await this.cdp.send('Emulation.setLocaleOverride', {
+        locale: 'ja-JP',
+      });
       await this.cdp.send('Page.startScreencast', {
         format: 'jpeg',
-        quality: 50,
+        quality: 40,
         everyNthFrame: 1
       });
 
@@ -235,6 +275,34 @@ export class BrowserManager {
       if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
          targetUrl = 'https://' + targetUrl;
       }
+      const parsed = new URL(targetUrl);
+      const host = parsed.hostname.toLowerCase();
+      const isGoogleDomain = host === "google.com" || host.endsWith(".google.com") || host.endsWith(".google.co.jp");
+      if (isGoogleDomain) {
+        if (host === "google.com" || host.endsWith(".google.com")) {
+          parsed.hostname = "www.google.co.jp";
+        }
+        parsed.searchParams.set("hl", "ja");
+        parsed.searchParams.set("gl", "JP");
+        if (parsed.pathname === "/" || parsed.pathname === "") {
+          parsed.searchParams.set("gws_rd", "cr");
+        }
+        await this.page.setCookie(
+          {
+            name: "PREF",
+            value: "hl=ja&gl=JP",
+            domain: ".google.com",
+            path: "/",
+          },
+          {
+            name: "PREF",
+            value: "hl=ja&gl=JP",
+            domain: ".google.co.jp",
+            path: "/",
+          },
+        );
+      }
+      targetUrl = parsed.toString();
       await this.page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
     } catch (err) {
       console.error(`[Browser] Failed to navigate to ${url}:`, err);
@@ -259,6 +327,17 @@ export class BrowserManager {
 
   async keyUp(key: string) {
     await this.page?.keyboard.up(key as any).catch(() => {});
+  }
+
+  async insertText(text: string) {
+    if (!text) return;
+
+    if (this.cdp) {
+      await this.cdp.send('Input.insertText', { text }).catch(() => {});
+      return;
+    }
+
+    await this.page?.keyboard.type(text).catch(() => {});
   }
 
   async scroll(deltaX: number, deltaY: number) {

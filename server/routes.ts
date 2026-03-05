@@ -102,6 +102,9 @@ export async function registerRoutes(
           case "keyUp":
             await activeBrowser.keyUp(msg.key);
             break;
+          case "insertText":
+            await activeBrowser.insertText(msg.text);
+            break;
           case "scroll":
             await activeBrowser.scroll(msg.deltaX, msg.deltaY);
             break;

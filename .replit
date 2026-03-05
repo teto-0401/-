@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["chromium", "gh", "unzip"]
+packages = ["chromium", "gh", "unzip", "noto-fonts-cjk-sans", "noto-fonts-cjk-serif", "noto-fonts-emoji"]
 
 [[ports]]
 localPort = 5000

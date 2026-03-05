@@ -9,16 +9,21 @@ interface BrowserCanvasProps {
 
 export interface BrowserCanvasRef {
   drawFrame: (base64: string) => void;
+  toggleFullscreen: () => Promise<void>;
+  isFullscreen: () => boolean;
 }
 
-const WIDTH = 800;
-const HEIGHT = 600;
+const WIDTH = 1280;
+const HEIGHT = 720;
 
 export const BrowserCanvas = forwardRef<BrowserCanvasRef, BrowserCanvasProps>(
   ({ onSend, status }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const imeInputRef = useRef<HTMLInputElement>(null);
+    const isComposingRef = useRef(false);
     const [isFocused, setIsFocused] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     useImperativeHandle(ref, () => ({
       drawFrame: (base64: string) => {
@@ -32,7 +37,17 @@ export const BrowserCanvas = forwardRef<BrowserCanvasRef, BrowserCanvasProps>(
           ctx.drawImage(img, 0, 0, WIDTH, HEIGHT);
         };
         img.src = `data:image/jpeg;base64,${base64}`;
-      }
+      },
+      toggleFullscreen: async () => {
+        const container = containerRef.current;
+        if (!container) return;
+        if (document.fullscreenElement === container) {
+          await document.exitFullscreen();
+          return;
+        }
+        await container.requestFullscreen();
+      },
+      isFullscreen: () => document.fullscreenElement === containerRef.current,
     }));
 
     // Mouse Events
@@ -79,13 +94,27 @@ export const BrowserCanvas = forwardRef<BrowserCanvasRef, BrowserCanvasProps>(
 
     // Keyboard Events
     const handleKeyDown = (e: React.KeyboardEvent) => {
+      if (isComposingRef.current) return;
       e.preventDefault();
       onSend({ type: "keyDown", key: e.key });
     };
 
     const handleKeyUp = (e: React.KeyboardEvent) => {
+      if (isComposingRef.current) return;
       e.preventDefault();
       onSend({ type: "keyUp", key: e.key });
+    };
+
+    const handleCompositionStart = () => {
+      isComposingRef.current = true;
+    };
+
+    const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
+      isComposingRef.current = false;
+      const text = e.data?.trim();
+      if (!text) return;
+      onSend({ type: "insertText", text });
+      e.currentTarget.value = "";
     };
 
     // Native Wheel Event (React onWheel might be passive)
@@ -104,18 +133,49 @@ export const BrowserCanvas = forwardRef<BrowserCanvasRef, BrowserCanvasProps>(
       };
     }, [onSend]);
 
+    useEffect(() => {
+      const onFullscreenChange = () => {
+        setIsFullscreen(document.fullscreenElement === containerRef.current);
+      };
+
+      document.addEventListener("fullscreenchange", onFullscreenChange);
+      return () => {
+        document.removeEventListener("fullscreenchange", onFullscreenChange);
+      };
+    }, []);
+
     return (
       <div 
         ref={containerRef}
-        className="relative flex-1 bg-neutral-100 dark:bg-neutral-900 overflow-hidden flex items-center justify-center p-4 md:p-8"
-        onClick={() => canvasRef.current?.focus()}
+        className={`relative flex-1 overflow-hidden flex items-center justify-center ${
+          isFullscreen
+            ? "bg-black p-0"
+            : "bg-neutral-100 dark:bg-neutral-900 p-4 md:p-8"
+        }`}
+        onClick={() => {
+          canvasRef.current?.focus();
+          imeInputRef.current?.focus();
+        }}
       >
+        <input
+          type="text"
+          ref={imeInputRef}
+          className="absolute h-0 w-0 opacity-0 pointer-events-none"
+          onKeyDown={handleKeyDown}
+          onKeyUp={handleKeyUp}
+          onCompositionStart={handleCompositionStart}
+          onCompositionEnd={handleCompositionEnd}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+        />
         <div 
-          className={`
-            relative rounded-lg overflow-hidden shadow-2xl transition-shadow duration-300
-            ${isFocused ? 'shadow-primary/20 ring-2 ring-primary/20' : 'shadow-black/10'}
-            bg-white
-          `}
+          className={`relative overflow-hidden transition-shadow duration-300 ${
+            isFullscreen
+              ? "w-screen h-screen rounded-none shadow-none bg-black"
+              : `rounded-lg shadow-2xl bg-white ${
+                  isFocused ? "shadow-primary/20 ring-2 ring-primary/20" : "shadow-black/10"
+                }`
+          }`}
         >
           {status !== "connected" && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm text-muted-foreground gap-4">
@@ -141,20 +201,15 @@ export const BrowserCanvas = forwardRef<BrowserCanvasRef, BrowserCanvasProps>(
             tabIndex={0}
             className={`
               block outline-none cursor-crosshair
-              w-full h-auto max-w-[800px] max-h-[600px] object-contain
+              ${isFullscreen ? "w-full h-full object-contain" : "w-full h-auto max-w-[1280px] max-h-[720px] object-contain"}
               transition-opacity duration-500
               ${status === "connected" ? 'opacity-100' : 'opacity-50'}
             `}
-            style={{ width: WIDTH, height: HEIGHT }}
             onMouseMove={handleMouseMove}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
             onContextMenu={handleContextMenu}
-            onKeyDown={handleKeyDown}
-            onKeyUp={handleKeyUp}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
           />
         </div>
       </div>

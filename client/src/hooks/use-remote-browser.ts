@@ -35,7 +35,7 @@ export function useRemoteBrowser({ onFrame }: UseRemoteBrowserProps = {}) {
       // Initialize the browser
       ws.send(JSON.stringify({ 
         type: "init", 
-        viewport: { width: 800, height: 600 } 
+        viewport: { width: 1280, height: 720 } 
       } as WsClientMessage));
     };
 

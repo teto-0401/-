@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Settings, Globe, RefreshCw, AlertCircle } from "lucide-react";
+import { Settings, Globe, RefreshCw, AlertCircle, Maximize2, Minimize2 } from "lucide-react";
 import { 
   Popover,
   PopoverContent,
@@ -14,6 +14,8 @@ interface BrowserToolbarProps {
   currentUrl: string;
   onNavigate: (url: string) => void;
   onUpdateSettings: (settings: { everyNthFrame?: number; quality?: number }) => void;
+  onToggleFullscreen: () => void;
+  isFullscreen: boolean;
   status: string;
   error: string | null;
 }
@@ -22,12 +24,15 @@ export function BrowserToolbar({
   currentUrl, 
   onNavigate, 
   onUpdateSettings,
+  onToggleFullscreen,
+  isFullscreen,
   status,
   error
 }: BrowserToolbarProps) {
   const [inputUrl, setInputUrl] = useState("");
-  const [quality, setQuality] = useState([80]);
-  const [fps, setFps] = useState([2]); // everyNthFrame
+  const [quality, setQuality] = useState([40]);
+  const [fps, setFps] = useState([1]); // everyNthFrame
+  const hasAppliedInitialSettingsRef = useRef(false);
 
   // Sync address bar when backend navigates
   useEffect(() => {
@@ -35,6 +40,16 @@ export function BrowserToolbar({
       setInputUrl(currentUrl);
     }
   }, [currentUrl]);
+
+  useEffect(() => {
+    if (status !== "connected") {
+      hasAppliedInitialSettingsRef.current = false;
+      return;
+    }
+    if (hasAppliedInitialSettingsRef.current) return;
+    onUpdateSettings({ quality: quality[0], everyNthFrame: fps[0] });
+    hasAppliedInitialSettingsRef.current = true;
+  }, [status, onUpdateSettings, quality, fps]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +60,7 @@ export function BrowserToolbar({
       if (target.includes(".") && !target.includes(" ")) {
         target = `https://${target}`;
       } else {
-        target = `https://www.google.co.jp/search?q=${encodeURIComponent(target)}`;
+        target = `https://www.google.co.jp/search?q=${encodeURIComponent(target)}&hl=ja&gl=JP`;
       }
     }
     
@@ -87,6 +102,19 @@ export function BrowserToolbar({
           className="h-12 w-12 rounded-2xl hover:bg-secondary text-muted-foreground hover:text-foreground"
         >
           <RefreshCw className="w-5 h-5" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onToggleFullscreen}
+          className="h-12 w-12 rounded-2xl hover:bg-secondary text-muted-foreground hover:text-foreground"
+        >
+          {isFullscreen ? (
+            <Minimize2 className="w-5 h-5" />
+          ) : (
+            <Maximize2 className="w-5 h-5" />
+          )}
         </Button>
 
         {/* Settings Popover */}

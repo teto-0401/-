@@ -9,6 +9,7 @@ export const wsClientMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("mouseUp"), button: z.enum(["left", "middle", "right"]) }),
   z.object({ type: z.literal("keyDown"), key: z.string() }),
   z.object({ type: z.literal("keyUp"), key: z.string() }),
+  z.object({ type: z.literal("insertText"), text: z.string() }),
   z.object({ type: z.literal("scroll"), deltaX: z.number(), deltaY: z.number() }),
   z.object({ type: z.literal("settings"), everyNthFrame: z.number().optional(), quality: z.number().optional() }),
 ]);
